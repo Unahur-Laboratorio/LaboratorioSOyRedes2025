@@ -1,1 +1,1 @@
-# LaboratorioSOyRedes2025
+# Laboratorio de Sistemas Operativos y Redes
