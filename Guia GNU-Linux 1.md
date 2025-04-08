@@ -1,12 +1,11 @@
 
-**Laboratorio de Sistemas**
+# **Laboratorio de Sistemas Operativos y Redes**
 
-**Operativos y Redes **
+## Guía Teórico/Práctica - UNIX y GNU/Linux
 
-**<sub>Guía Teórico/Práctica - UNIX y GNU/Linux</sub>**
+**Rev 1.0 - 06/04/2025**
 
-**<sub>Rev 1.0 - 06/04/2025</sub>**
-
+------
 
 # 1 Introducción
 
