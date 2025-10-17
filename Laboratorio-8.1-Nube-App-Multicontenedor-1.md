@@ -317,7 +317,7 @@ Debe haber un rds-sg que permita el ingreso de MySQL desde todo origen.
 - Ir al servicio RDS y seleccionar la Base de datos
 - Seleccionar la Base de Datos e ir a Modify
 - Buscar la Connectivity y agregar el SG
- 
+
 
 ### 5.2 Probar conectividad con MySQL
 
@@ -337,6 +337,7 @@ Si está todo bien, se conectará a MySQL. No cerrar la sesión.
 ### 5.3 En mysql ingresar:
 
 ```sql
+USE examdb;
 CREATE TABLE IF NOT EXISTS tutorials (
   id INT AUTO_INCREMENT PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
