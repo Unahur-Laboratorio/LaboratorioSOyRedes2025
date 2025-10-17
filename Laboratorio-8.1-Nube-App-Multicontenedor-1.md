@@ -265,7 +265,6 @@ Si aparece un pop-up con complementos sugeridos hacer click en **Close**
 
 - Una vez creada la instancia de base de datos, copiar el **Endpoint** RDS (p.ej. `examdb.xxxxxx.us-east-1.rds.amazonaws.com`).
 
-
 ---
 
 ## 4 Secrets Manager: credenciales y config de DB
@@ -304,3 +303,36 @@ Por ejemplo:
   > Si aparece un mensaje de error **Failed to fetch a list of Amazon DocumentDB clusters.** ignorarlo.
 - Hacer click en **Next**
 - Revisar la configuración y hacer click en **Store**
+
+## 5 Iniciar el esquema en RDS
+
+### 5.1 Revisar los SG de RDS
+
+Debe haber un rds-sg que permita el ingreso de MySQL desde todo origen.
+
+### 5.2 Probar conectividad con MySQL
+
+En la consola de la instancia EC2
+```bash
+sudo dnf install mariadb105
+mysql -h <endpoint> -u admin -p
+```
+
+Ejemplo
+```
+mysql -h database-1.cjxro5kry7ld.us-east-1.rds.amazonaws.com -u admin -p
+``` 
+
+Si está todo bien, se conectará a MySQL. No cerrar la sesión.
+
+### 5.3 En mysql ingresar:
+
+```sql
+CREATE TABLE IF NOT EXISTS tutorials (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  published BOOLEAN DEFAULT false
+);
+```
+
