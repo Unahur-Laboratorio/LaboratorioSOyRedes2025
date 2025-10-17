@@ -346,3 +346,50 @@ CREATE TABLE IF NOT EXISTS tutorials (
 );
 ```
 
+## 5 Configuración de la Orquestación de Contendores (ECS) 
+
+### 5.1 Creación del Cluster ECS
+
+- En la consola de AWS buscar el servicio **ECS Elastic Container Service**
+- En el menu de la izquierda seleccionar **Clusters**
+- Luego hacer click en **Create cluster**
+- En **Cluster configuration**
+  - **Cluster name**: `exam-api-cluster`
+- En **Infrastructure** seleccionar **Fargate and Managerd Instances**
+- En **Instance profile** seleccionar **EMR_EC2_Default**
+- En **Infrastructure role** seleccionar el rol que termina con **role/LabRole**
+- En **Instance selection** seleccionar **Use ECS default**
+- Hacer click en **Create**
+
+### 8.2 Definición de la Task (Contenedor API)
+
+- En la consola ECS, en el menú de la izquierda seleccionar **Task Definitions**
+- Hacer click en **Create new task definition** y luego seleccionar **Create new task definition**
+- En **Task definition configuration**
+  - **Task definition family**: `exam-api-task`
+- En **Infrastructure requirements** seleccionar **AWS Fargate**
+* **Fargate**, compatibilidad `FARGATE`.
+* En **Task role** seleccionar **LabRole**
+* En **Task execution role** seleccionar **LabRole**
+* En **Container - 1**
+  * **Container details**
+    * **Name**: `exam-api`
+    * **Image URI** click en **Browse ECR images** y seleccionar el repositorio: `exam-api`, luego marcar la imagen con **Image tag**: **latest** y hacer click en **Select image digest**
+    * En **Port mappings** 
+      * **Container port**: `8080`
+      * **Protocol**: `TCP`
+      * **App protocol**: `HTTP`
+  * En **Environment variables** hacer click en **Add environment variable** 
+    * En **Key** colocar la <key>, por ej DB_HOST, en **Value type** colocar **ValueFrom** y en **Value** colocar
+    <secret ARN>:<key>:: 
+    
+    - El <secret ARN> lo obtiene de la consola de Secret Manager.
+    Ejemplo:  `arn:aws:secretsmanager:us-east-1:807733421542:secret:exam-api-db-secret-9PCC7`
+
+    - Las <key> son `DB_HOST`, `DB_USER`, `DB_PASSWORD` y `DB_NAME`
+
+    Ejemplo de Value completo:
+    `arn:aws:secretsmanager:us-east-1:807733421542:secret:exam-api-db-secret-9PCC7w:DB_HOST::`
+  
+- Crear Task
+- Revisar configuracion JSON
