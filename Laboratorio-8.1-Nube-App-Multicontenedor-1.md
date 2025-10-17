@@ -310,6 +310,15 @@ Por ejemplo:
 
 Debe haber un rds-sg que permita el ingreso de MySQL desde todo origen.
 
+- Ir al servicio EC2
+- En el menu de la izquierda Ir a seguridad y elegir Security Groups
+- Crear un SG llamado **rds-sg** con una regla IN 3306 source 0.0.0.0
+
+- Ir al servicio RDS y seleccionar la Base de datos
+- Seleccionar la Base de Datos e ir a Modify
+- Buscar la Connectivity y agregar el SG
+ 
+
 ### 5.2 Probar conectividad con MySQL
 
 En la consola de la instancia EC2
@@ -320,7 +329,7 @@ mysql -h <endpoint> -u admin -p
 
 Ejemplo
 ```
-mysql -h database-1.cjxro5kry7ld.us-east-1.rds.amazonaws.com -u admin -p
+mysql -h database-1.cjxro5kry7ld.us-east-1.rds.amazonaws.com -u examuser -p
 ``` 
 
 Si está todo bien, se conectará a MySQL. No cerrar la sesión.
