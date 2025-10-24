@@ -346,9 +346,9 @@ CREATE TABLE IF NOT EXISTS tutorials (
 );
 ```
 
-## 5 Configuración de la Orquestación de Contendores (ECS) 
+## 6 Configuración de la Orquestación de Contendores (ECS) 
 
-### 5.1 Creación del Cluster ECS
+### 6.1 Creación del Cluster ECS
 
 - En la consola de AWS buscar el servicio **ECS Elastic Container Service**
 - En el menu de la izquierda seleccionar **Clusters**
@@ -361,7 +361,7 @@ CREATE TABLE IF NOT EXISTS tutorials (
 - En **Instance selection** seleccionar **Use ECS default**
 - Hacer click en **Create**
 
-### 8.2 Definición de la Task (Contenedor API)
+### 6.2 Definición de la Task (Contenedor API)
 
 - En la consola ECS, en el menú de la izquierda seleccionar **Task Definitions**
 - Hacer click en **Create new task definition** y luego seleccionar **Create new task definition**
@@ -393,3 +393,283 @@ CREATE TABLE IF NOT EXISTS tutorials (
   
 - Crear Task
 - Revisar configuracion JSON
+
+
+### 6.3 Crear el Balanceador de carga
+
+#### 6.3.1 Crear el target group
+- En la consola de AWS buscar el servicio **EC2**
+- En el menu de la izquierda buscar **Load Balancing** y seleccionar **Target Groups**
+- Hacer click en **Create target group**
+- En **Choose target type** seleccionar **IP addresses**
+- En Target group name: exam-api-tg
+- Protocol HTTP
+- Port 8080
+- IP address type IPv4
+- Protocol version HTTP1
+- Click en next
+- En IP addresses, Step 2 remove ip address
+- Ports 8080
+
+#### 6.3.2 Crear el ALB público
+
+- En la consola de AWS buscar el servicio **EC2**
+- En el menu de la izquierda buscar **Load Balancing** y seleccionar **Load Balancers**
+- Hacer click en Create load balancer
+- En Load balancer types, seleccionar Application Load Balancer y hacer click en **Create**
+- En Load balancer name: exam-api-lb
+- Scheme Internet facing
+- Marcar todas las AZ
+- Crear un SG sg-alb con in 80 0.0.0.0
+- Seleccionar el SG sg-alb. Mantener también el SG default.
+- Listener http 80
+- Default action - routing action - Forward to target group,
+- Select target group exam-api-tg
+- click create load balancer
+
+
+### 6.4. Crear el servicio ECS(Fargate)
+
+- En la consola de AWS buscar el servicio **ECS**
+- En el menu de la izquierda seleccionar **Clusters** y luego hacer click en el nombre del cluster (**exam-api-cluster**)
+- En la pestala Services hacer click en Create
+- Task definition family: exam-api
+- Ir a Environment - Compute configuration - advanced
+  - Compute options, seleccionar Launch type
+  - En Launch type, seleccionar FARGATE y Platform version: LATEST
+- Ir a Load balancing
+  - Seleccionar User load balancing
+  - Load balancer type: seleccionar Application Load Balancer
+  - Container: seleccionar exam-api 8080:8080
+  - Application Load balancer: seleccionar Use an existing load balancer
+  - Load balancer: seleccionar exam-api-lb
+  - En Listener, seleecionar User an existing listener y luego seleccionar Listener HTTP:80
+  - En Target group, seleccionar User an existing target group y luego Target group name exam-api-tg
+  - Click en Create
+
+Probar la API con curl o navegador a
+http://<ALB DNS>/
+http://<ALB DNS>/api/tutorials
+
+---
+
+## 7) Frontend 
+
+### 7.1 Configuracion como sitio estatico en — S3
+
+#### 7.1.1 Crear index.html (Frontend)
+
+Crear index.html con el siguiente contenido:
+> Remplazar <ALB_DNS> por el DNS Name el Load Balancer
+
+```html
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Examen Node API</title>
+  <script>
+    // Reemplazá <ALB_DNS> por el DNS del Application Load Balancer creado en AWS
+    const ALB_DNS = '<ALB_DNS>'; // Ejemplo: 'exam-api-lb-1909225646.us-east-1.elb.amazonaws.com'
+    const API_BASE = `http://${ALB_DNS}/api/tutorials`;
+
+    async function getAll() {
+      const res = await fetch(API_BASE);
+      const data = await res.json();
+      document.getElementById('result').innerText = JSON.stringify(data, null, 2);
+    }
+
+    async function create() {
+      await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: "Desde Frontend", description: "Agregado desde HTML", published: false })
+      });
+      getAll();
+    }
+
+    async function getOne() {
+      const id = document.getElementById('id').value;
+      const res = await fetch(`${API_BASE}/${id}`);
+      const data = await res.json();
+      document.getElementById('result').innerText = JSON.stringify(data, null, 2);
+    }
+
+    async function update() {
+      const id = document.getElementById('id').value;
+      await fetch(`${API_BASE}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: "Actualizado", description: "Editado desde HTML", published: true })
+      });
+      getAll();
+    }
+
+    async function deleteOne() {
+      const id = document.getElementById('id').value;
+      await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+      getAll();
+    }
+
+    async function deleteAll() {
+      await fetch(API_BASE, { method: 'DELETE' });
+      getAll();
+    }
+
+    window.onload = getAll;
+  </script>
+</head>
+<body>
+  <h1>Frontend para API Node.js</h1>
+  <p>ID: <input id="id" type="number" value="1"></p>
+  <button onclick="getAll()">Listar todos</button>
+  <button onclick="create()">Crear uno</button>
+  <button onclick="getOne()">Obtener por ID</button>
+  <button onclick="update()">Actualizar</button>
+  <button onclick="deleteOne()">Eliminar por ID</button>
+  <button onclick="deleteAll()">Eliminar todos</button>
+  <pre id="result"></pre>
+</body>
+</html>
+```
+
+#### 7.1.2 Crear Frontend como sitio web estático
+
+Ir al servicio S3
+1. Crear un bucket S3 público (p.ej. `exam-frontend-bucket-<tu-iniciales>`).
+2. Deseleccionar block public access
+3. Create bucket
+4. Subí el archivo `index.html` del frontend al bucket S3 creado.
+5. Configurá el bucket para *static website hosting* desde las opciones (Properties) del bucket.
+6. Copiá la URL del endpoint del sitio estático para acceder al frontend.
+7. Actualizá la URL del ALB en el JS de `index.html` para que las llamadas a la API se dirijan al DNS del ALB creado en AWS.
+8. Configurar permisos del bucket
+   
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Sid": "PublicRead",
+    "Effect": "Allow",
+    "Principal": "*",
+    "Action": ["s3:GetObject"],
+    "Resource": "arn:aws:s3:::<TU_BUCKET>/*"
+  }]
+}
+
+
+Probar el Frontend abriendo la URL del Bucket website endpoing con curl o explorador:
+http://<TU_BUCKET>.s3-website-us-east-1.amazonaws.com
+
+>**El Frontend se visualizará correctamente, pero las llamadas a la API van a fallar por CORS**
+
+### 7.2 Agregar API Gateway para manejar CORS
+
+#### 7.2.1 Crear API HTTP
+
+- Ir al servicio API Gateway
+- Seleccionar APIs y luego click en Create API
+- Seleccionar HTTP API y hacer click en Build
+  - API Name: exam-api
+  - Click en Add integration
+  - Seleccionar HTTP
+  - Method: ANY
+  - URL endpoint: colocar `http://<DNS Name del load balancer>/{proxy}`
+  - Click en Next
+- En Configure routes
+  - Click en Add route
+    - Method: ANY
+    - Resource path: /{proxy+}
+    - Integration target: seleccionar el URL target creado mas arriba (`http://<DNS Name del load balancer>/{proxy}`)
+    - Click en Next
+    - Stage name: $default
+    - Auto-deploy: activado.
+    - Click en Next
+- Click en Create
+
+#### 7.2.2 Configurar CORS
+
+Abrir la API recién creada: API Gateway → APIs → exam-api
+
+En el menú izquierdo buscar CORS
+
+Click en Configure
+
+Completar:
+
+Allowed origins: (URL del Frontend en S3) ejemplo:
+http://exam-api-frontent.s3-website-us-east-1.amazonaws.com
+
+Allowed methods: GET,POST,PUT,DELETE,OPTIONS
+
+Allowed headers: Content-Type,Authorization
+
+Click en Save
+
+#### 7.2.3 Modificar Frontend para usar API Gateway
+
+- Obtener la URL del API Gateway:
+  - Ir a API Gateway - APIs - exam-api
+  - En el menu de la izquireda hacer click en API:exam-api...(<API-ID>)
+  - En Default endpoint está la URL de la API
+
+- Editar index.html del frontend y cambiar el `API_BASE` a la URL de API Gateway. 
+  
+Por ejemplo:
+```javascript
+const API_BASE = 'https://<api-id>.execute-api.us-east-1.amazonaws.com/api/tutorials';
+```
+
+Is a S3 y volver a subir el archivo index.html editado al bucket.
+
+Probar el Frontend abriendo la URL del Bucket website endpoing con curl o explorador:
+
+`http://<TU_BUCKET>.s3-website-us-east-1.amazonaws.com`
+
+## Anexo: Pruebas de la API con curl
+
+Una vez desplegada la API y obtenida la URL pública del Application Load Balancer (ALB) o del API Gateway, puede probar los endpoints principales usando `curl` desde cualquier terminal.
+
+> Reemplace `<API_URL>` por la URL de su ALB o API Gateway, por ejemplo:  
+> `http://exam-api-lb-xxxxxxxxxx.us-east-1.elb.amazonaws.com/api/tutorials`  
+> o  
+> `https://<api-id>.execute-api.us-east-1.amazonaws.com/api/tutorials`
+
+### Listar todos los tutorials
+
+```bash
+curl <API_URL>/api/tutorials
+```
+
+### Crear un tutorial
+
+```bash
+curl -X POST <API_URL>/api/tutorials \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Desde curl","description":"Agregado desde curl","published":false}'
+```
+
+### Obtener un tutorial por ID
+
+```bash
+curl <API_URL>/api/tutorials/1
+```
+
+### Actualizar un tutorial
+
+```bash
+curl -X PUT <API_URL>/api/tutorials/1 \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Actualizado desde curl","description":"Editado via curl","published":true}'
+```
+
+### Eliminar un tutorial por ID
+
+```bash
+curl -X DELETE <API_URL>/api/tutorials/1
+```
+
+### Eliminar todos los tutorials
+
+```bash
+curl -X DELETE <API_URL>/api/tutorials
+```
