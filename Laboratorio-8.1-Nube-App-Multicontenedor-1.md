@@ -544,7 +544,8 @@ Ir al servicio S3
 6. Copiá la URL del endpoint del sitio estático para acceder al frontend.
 7. Actualizá la URL del ALB en el JS de `index.html` para que las llamadas a la API se dirijan al DNS del ALB creado en AWS.
 8. Configurar permisos del bucket
-   
+
+```jason  
 {
   "Version": "2012-10-17",
   "Statement": [{
@@ -555,7 +556,7 @@ Ir al servicio S3
     "Resource": "arn:aws:s3:::<TU_BUCKET>/*"
   }]
 }
-
+``` 
 
 Probar el Frontend abriendo la URL del Bucket website endpoing con curl o explorador:
 http://<TU_BUCKET>.s3-website-us-east-1.amazonaws.com
