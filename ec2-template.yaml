@@ -1,118 +1,34 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: EC2 AL2023 t2.micro 
+Description: EC2 Amazon Linux 2023 (sin key, sin user data)
 
 Parameters:
-  VpcId:
-    Type: AWS::EC2::VPC::Id
-    Description: VPC privada alcanzable por Direct Connect
-  InstanceSubnetId:
-    Type: AWS::EC2::Subnet::Id
-    Description: Subred privada (sin IGW/NAT) para la instancia
-  EndpointSubnetIds:
-    Type: List<AWS::EC2::Subnet::Id>
-    Description: Subred(es) privadas donde crear los Interface Endpoints (pueden ser las mismas)
-
-Conditions: {}
+  LatestAL2023AmiId:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64"
 
 Resources:
-  # SG de la instancia: sin ingress; solo egress a los Endpoints SSM (443)
-  InstanceSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: SG instancia AL2023 (solo egress a endpoints SSM)
-      VpcId: !Ref VpcId
-
-  # SG para los VPC Endpoints (permite 443 desde la instancia)
-  EndpointSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: SG para VPC Interface Endpoints de SSM
-      VpcId: !Ref VpcId
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          SourceSecurityGroupId: !Ref InstanceSG
-
-  # Reglas egress desde la instancia SOLO hacia los endpoints (443)
-  InstanceEgressToEndpoints:
-    Type: AWS::EC2::SecurityGroupEgress
-    Properties:
-      GroupId: !Ref InstanceSG
-      IpProtocol: tcp
-      FromPort: 443
-      ToPort: 443
-      DestinationSecurityGroupId: !Ref EndpointSG
-
-  # Role + InstanceProfile para SSM (sin esto no hay Session Manager)
-  InstanceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal: { Service: ec2.amazonaws.com }
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-      Path: "/"
-
-  InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Roles: [ !Ref InstanceRole ]
-      Path: "/"
-
-  # VPC Interface Endpoints necesarios para SSM (sin Internet)
-  VPCESSM:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VpcId
-      VpcEndpointType: Interface
-      ServiceName: !Sub com.amazonaws.${AWS::Region}.ssm
-      SubnetIds: !Ref EndpointSubnetIds
-      PrivateDnsEnabled: true
-      SecurityGroupIds: [ !Ref EndpointSG ]
-
-  VPCEEC2Messages:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VpcId
-      VpcEndpointType: Interface
-      ServiceName: !Sub com.amazonaws.${AWS::Region}.ec2messages
-      SubnetIds: !Ref EndpointSubnetIds
-      PrivateDnsEnabled: true
-      SecurityGroupIds: [ !Ref EndpointSG ]
-
-  VPCESSMMessages:
-    Type: AWS::EC2::VPCEndpoint
-    Properties:
-      VpcId: !Ref VpcId
-      VpcEndpointType: Interface
-      ServiceName: !Sub com.amazonaws.${AWS::Region}.ssmmessages
-      SubnetIds: !Ref EndpointSubnetIds
-      PrivateDnsEnabled: true
-      SecurityGroupIds: [ !Ref EndpointSG ]
-
-  # Instancia EC2: Amazon Linux 2023, t2.micro, sin KeyName y sin UserData
-  DirectConnectInstance:
+  DockerInstance:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: t2.micro
-      IamInstanceProfile: !Ref InstanceProfile
-      SubnetId: !Ref InstanceSubnetId
-      SecurityGroupIds: [ !Ref InstanceSG ]
-      ImageId: "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-6.1-x86_64}}"
-      Tags:
-        - Key: Name
-          Value: al2023-dc-only
-      # Sin KeyName, sin UserData
+      ImageId: !Ref LatestAL2023AmiId
+      SecurityGroups:
+        - !Ref InstanceSecurityGroup
 
-Outputs:
-  InstanceId:
-    Description: ID de la instancia
-    Value: !Ref DirectConnectInstance
-  PrivateIP:
-    Description: IP privada (alcanzable por DC)
-    Value: !GetAtt DirectConnectInstance.PrivateIp
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow SSH/HTTP/HTTPS
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
